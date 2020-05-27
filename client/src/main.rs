@@ -14,6 +14,7 @@ use vulkano::pipeline::viewport::Viewport;
 use vulkano::swapchain;
 use vulkano::sync;
 use vulkano::sync::{GpuFuture, FlushError};
+use vulkano::format::Format;
 
 use vulkano_win::VkSurfaceBuild;
 use winit::event_loop::EventLoop;
@@ -54,16 +55,29 @@ fn window_size_dependent_setup(
 }
 
 pub struct Renderer {
-	instance : Arc<Instance>,
-	device : Arc<Device>,
+    instance : Arc<Instance>,
+    render_device : RenderDevice,
+    render_stage : RenderStage,
+    window_handle : WindowHandle,
+    
+    vertex_buffer : Vec<Arc<dyn vulkano::buffer::BufferAccess + Send + Sync>>,
+}
+
+pub struct RenderDevice {
+    device : Arc<Device>,
 	queue : Arc<vulkano::device::Queue>,
-	surface : Arc<Surface<Window>>,
-	swapchain : Arc<Swapchain<Window>>,
-	images : Vec<Arc<SwapchainImage<Window>>>,
-	render_pass : Arc<dyn RenderPassAbstract + Send + Sync>,
+}
+
+pub struct RenderStage {
+    render_pass : Arc<dyn RenderPassAbstract + Send + Sync>,
 	pipeline : Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
-	vertex_buffer : Vec<Arc<dyn vulkano::buffer::BufferAccess + Send + Sync>>,
-	dynamic_state : DynamicState,
+}
+
+pub struct WindowHandle {
+    surface : Arc<Surface<Window>>,
+	swapchain : Arc<Swapchain<Window>>,
+    images : Vec<Arc<SwapchainImage<Window>>>,
+    dynamic_state : DynamicState,
 	framebuffers : Vec<Arc<dyn FramebufferAbstract + Send + Sync>>,
 	recreate_swapchain : bool,
 	previous_frame_end : Option<Box<dyn GpuFuture>>,
@@ -78,10 +92,23 @@ impl Renderer {
 		// EventLoop + Surface setup
 		let surface = WindowBuilder::new().build_vk_surface(&event_loop, instance.clone()).unwrap();
 
-		// Choose queue family
-		let physical = PhysicalDevice::enumerate(&instance).next().expect("no device available");
+        // Choose queue family
+        println!("Available physical devices:");
+        for dev in PhysicalDevice::enumerate(&instance) {
+            println!("\t{}. {}, API: {}", dev.index(), dev.name(), dev.api_version());
+        }
+        let physical = PhysicalDevice::enumerate(&instance).next().expect("no device available");
+        println!("Using {} as physical device.", physical.name());
+ 
+        println!("Available queue families:");
 		for family in physical.queue_families() {
-			println!("Found a queue family with {:?} queue(s)", family.queues_count());
+            println!("ID: {} Queue count: {} Graphics: {} Compute: {} Transfer: {} Sparse bindings: {}", 
+            family.id(),
+            family.queues_count(),
+            family.supports_graphics(),
+            family.supports_compute(),
+            family.explicitly_supports_transfers(),
+            family.supports_sparse_binding());
 		}
 		let queue_family = physical.queue_families()
 			.find(|&q| q.supports_graphics()  && surface.is_supported(q).unwrap_or(false))
@@ -109,8 +136,10 @@ impl Renderer {
 			// you can choose whether the window will be opaque or transparent.
 			let alpha = caps.supported_composite_alpha.iter().next().unwrap();
 	
-			// Choosing the internal format that the images will have.
-			let format = caps.supported_formats[0].0;
+            // Choosing the internal format that the images will have.
+            println!("{:?}",caps.supported_formats);
+            //let format = caps.supported_formats[0].0;
+			let format = vulkano::format::Format::B8G8R8A8Unorm;
 	
 			// The dimensions of the window, only used to initially setup the swapchain.
 			// NOTE:
@@ -210,7 +239,7 @@ impl Renderer {
         // Now that our builder is filled, we call `build()` to obtain an actual pipeline.
         .build(device.clone())
 		.unwrap());
-		
+
 		let vertex_buffer = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, [
             Vertex { position: [-0.5, -0.25] },
             Vertex { position: [0.0, 0.5] },
@@ -222,20 +251,33 @@ impl Renderer {
 		let recreate_swapchain = false;
 		let previous_frame_end = Some(Box::new(sync::now(device.clone())) as Box<dyn GpuFuture>);
 
+        let render_device = RenderDevice {
+            device,
+			queue,
+        };
+
+        let render_stage = RenderStage {
+            render_pass,
+            pipeline
+        };
+
+        let window_handle = WindowHandle {
+            surface,
+			swapchain,
+            images,
+            dynamic_state,
+			framebuffers,
+            recreate_swapchain,
+            previous_frame_end,
+        };
+
 		return Renderer{
 			instance,
-			device,
-			queue,
-			surface,
-			swapchain,
-			images,
-			render_pass,
-			pipeline,
+            render_device,
+            render_stage,
+            window_handle,
+			
 			vertex_buffer: vec![vertex_buffer],
-			dynamic_state,
-			framebuffers,
-			recreate_swapchain,
-			previous_frame_end
 		};
 	}
 
@@ -245,21 +287,21 @@ impl Renderer {
                 *control_flow = ControlFlow::Exit;
             },
             Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                self.recreate_swapchain = true;
+                self.window_handle.recreate_swapchain = true;
             },
             Event::RedrawEventsCleared => {
                 // It is important to call this function from time to time, otherwise resources will keep
                 // accumulating and you will eventually reach an out of memory error.
                 // Calling this function polls various fences in order to determine what the GPU has
                 // already processed, and frees the resources that are no longer needed.
-                self.previous_frame_end.as_mut().unwrap().cleanup_finished();
+                self.window_handle.previous_frame_end.as_mut().unwrap().cleanup_finished();
 
                 // Whenever the window resizes we need to recreate everything dependent on the window size.
                 // In this example that includes the swapchain, the framebuffers and the dynamic state viewport.
-                if self.recreate_swapchain {
+                if self.window_handle.recreate_swapchain {
                     // Get the new dimensions of the window.
-                    let dimensions: [u32; 2] = self.surface.window().inner_size().into();
-                    let (new_swapchain, new_images) = match self.swapchain.recreate_with_dimensions(dimensions) {
+                    let dimensions: [u32; 2] = self.window_handle.surface.window().inner_size().into();
+                    let (new_swapchain, new_images) = match self.window_handle.swapchain.recreate_with_dimensions(dimensions) {
                         Ok(r) => r,
                         // This error tends to happen when the user is manually resizing the window.
                         // Simply restarting the loop is the easiest way to fix this issue.
@@ -267,11 +309,11 @@ impl Renderer {
                         Err(e) => panic!("Failed to recreate swapchain: {:?}", e)
                     };
 
-                    self.swapchain = new_swapchain;
+                    self.window_handle.swapchain = new_swapchain;
                     // Because framebuffers contains an Arc on the old swapchain, we need to
                     // recreate framebuffers as well.
-                    self.framebuffers = window_size_dependent_setup(&new_images, self.render_pass.clone(), &mut self.dynamic_state);
-                    self.recreate_swapchain = false;
+                    self.window_handle.framebuffers = window_size_dependent_setup(&new_images, self.render_stage.render_pass.clone(), &mut self.window_handle.dynamic_state);
+                    self.window_handle.recreate_swapchain = false;
                 }
 
                 // Before we can draw on the output, we have to *acquire* an image from the swapchain. If
@@ -281,10 +323,10 @@ impl Renderer {
                 //
                 // This function can block if no image is available. The parameter is an optional timeout
                 // after which the function call will return an error.
-                let (image_num, suboptimal, acquire_future) = match swapchain::acquire_next_image(self.swapchain.clone(), None) {
+                let (image_num, suboptimal, acquire_future) = match swapchain::acquire_next_image(self.window_handle.swapchain.clone(), None) {
                     Ok(r) => r,
                     Err(AcquireError::OutOfDate) => {
-                        self.recreate_swapchain = true;
+                        self.window_handle.recreate_swapchain = true;
                         return;
                     },
                     Err(e) => panic!("Failed to acquire next image: {:?}", e)
@@ -294,7 +336,7 @@ impl Renderer {
                 // will still work, but it may not display correctly. With some drivers this can be when
                 // the window resizes, but it may not cause the swapchain to become out of date.
                 if suboptimal {
-                    self.recreate_swapchain = true;
+                    self.window_handle.recreate_swapchain = true;
                 }
 
                 // Specify the color to clear the framebuffer with i.e. blue
@@ -309,7 +351,7 @@ impl Renderer {
                 //
                 // Note that we have to pass a queue family when we create the command buffer. The command
                 // buffer will only be executable on that given queue family.
-                let command_buffer = AutoCommandBufferBuilder::primary_one_time_submit(self.device.clone(), self.queue.family()).unwrap()
+                let command_buffer = AutoCommandBufferBuilder::primary_one_time_submit(self.render_device.device.clone(), self.render_device.queue.family()).unwrap()
                     // Before we can draw, we have to *enter a render pass*. There are two methods to do
                     // this: `draw_inline` and `draw_secondary`. The latter is a bit more advanced and is
                     // not covered here.
@@ -317,13 +359,13 @@ impl Renderer {
                     // The third parameter builds the list of values to clear the attachments with. The API
                     // is similar to the list of attachments when building the framebuffers, except that
                     // only the attachments that use `load: Clear` appear in the list.
-                    .begin_render_pass(self.framebuffers[image_num].clone(), false, clear_values).unwrap()
+                    .begin_render_pass(self.window_handle.framebuffers[image_num].clone(), false, clear_values).unwrap()
 
                     // We are now inside the first subpass of the render pass. We add a draw command.
                     //
                     // The last two parameters contain the list of resources to pass to the shaders.
                     // Since we used an `EmptyPipeline` object, the objects have to be `()`.
-                    .draw(self.pipeline.clone(), &self.dynamic_state, self.vertex_buffer.clone(), (), ()).unwrap()
+                    .draw(self.render_stage.pipeline.clone(), &self.window_handle.dynamic_state, self.vertex_buffer.clone(), (), ()).unwrap()
 
                     // We leave the render pass by calling `draw_end`. Note that if we had multiple
                     // subpasses we could have called `next_inline` (or `next_secondary`) to jump to the
@@ -333,9 +375,9 @@ impl Renderer {
                     // Finish building the command buffer by calling `build`.
                     .build().unwrap();
 
-                let future = self.previous_frame_end.take().unwrap()
+                let future = self.window_handle.previous_frame_end.take().unwrap()
                     .join(acquire_future)
-                    .then_execute(self.queue.clone(), command_buffer).unwrap()
+                    .then_execute(self.render_device.queue.clone(), command_buffer).unwrap()
 
                     // The color output is now expected to contain our triangle. But in order to show it on
                     // the screen, we have to *present* the image by calling `present`.
@@ -343,20 +385,20 @@ impl Renderer {
                     // This function does not actually present the image immediately. Instead it submits a
                     // present command at the end of the queue. This means that it will only be presented once
                     // the GPU has finished executing the command buffer that draws the triangle.
-                    .then_swapchain_present(self.queue.clone(), self.swapchain.clone(), image_num)
+                    .then_swapchain_present(self.render_device.queue.clone(), self.window_handle.swapchain.clone(), image_num)
                     .then_signal_fence_and_flush();
 
                 match future {
                     Ok(future) => {
-                        self.previous_frame_end = Some(Box::new(future) as Box<_>);
+                        self.window_handle.previous_frame_end = Some(Box::new(future) as Box<_>);
                     },
                     Err(FlushError::OutOfDate) => {
-                        self.recreate_swapchain = true;
-                        self.previous_frame_end = Some(Box::new(sync::now(self.device.clone())) as Box<_>);
+                        self.window_handle.recreate_swapchain = true;
+                        self.window_handle.previous_frame_end = Some(Box::new(sync::now(self.render_device.device.clone())) as Box<_>);
                     }
                     Err(e) => {
                         println!("Failed to flush future: {:?}", e);
-                        self.previous_frame_end = Some(Box::new(sync::now(self.device.clone())) as Box<_>);
+                        self.window_handle.previous_frame_end = Some(Box::new(sync::now(self.render_device.device.clone())) as Box<_>);
                     }
                 }
             },
