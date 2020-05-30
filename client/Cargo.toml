@@ -8,7 +8,4 @@ edition = "2018"
 
 [dependencies]
 rustcraft-engine = {path = "../engine"}
-vulkano = "0.18"
-vulkano-shaders = "0.18"
-vulkano-win = "0.18"
 winit = "0.22"
