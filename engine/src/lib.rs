@@ -2,14 +2,14 @@ mod config;
 mod io;
 mod system;
 mod util;
-mod rendering;
 pub mod model;
 pub mod task;
 pub mod core;
 pub mod engine;
 pub mod app;
 
-
+#[cfg(feature = "graphics")]
+pub mod rendering;
 
 #[cfg(test)]
 mod tests {

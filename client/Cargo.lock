@@ -653,9 +653,6 @@ name = "rustcraft-client"
 version = "0.1.0"
 dependencies = [
  "rustcraft-engine",
- "vulkano",
- "vulkano-shaders",
- "vulkano-win",
  "winit",
 ]
 

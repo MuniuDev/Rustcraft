@@ -6,9 +6,14 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+graphics = ["vulkano", "vulkano-shaders", "vulkano-win", "winit"]
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-vulkano = "0.18"
-vulkano-shaders = "0.18"
-vulkano-win = "0.18"
-winit = "0.22"
+
+vulkano = { version = "0.18", optional = true }
+vulkano-shaders = { version = "0.18", optional = true }
+vulkano-win = { version = "0.18", optional = true }
+winit = { version = "0.22", optional = true }

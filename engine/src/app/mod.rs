@@ -1,6 +1,10 @@
 mod app;
-mod client;
-
 pub use app::App;
-pub use client::ClientApp;
 
+pub fn print_feat() {
+
+    #[cfg(feature = "graphics")]
+    println!("With Graphics = true");
+    #[cfg(not(feature = "graphics"))]
+    println!("With Graphics = false");
+}
