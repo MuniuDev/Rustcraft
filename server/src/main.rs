@@ -2,8 +2,6 @@ mod server;
 
 use std::time::{Duration, Instant};
 
-use rustcraft_engine::app::App;
-
 use server::ServerApp;
 
 

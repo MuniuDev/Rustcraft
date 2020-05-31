@@ -1,11 +1,21 @@
+use rustcraft_engine::engine::Engine;
+use rustcraft_engine::model::World;
+
 pub struct ServerApp {
-    is_running : bool
+    is_running : bool,
+    engine: Engine,
+    world: Option<World>,
 }
 
 impl ServerApp {
     pub fn new() -> Self {
+        let engine = Engine::new();
+        let world = World::new();
+
         return ServerApp{
-            is_running: true
+            is_running: true,
+            engine,
+            world: None,
         };
     }
 
@@ -13,11 +23,10 @@ impl ServerApp {
         return self.is_running;
     }
 
-    fn update(&mut self, dt: std::time::Duration) {
-        println!("Server tick: dt={:?}", dt);
-        let ms16 = std::time::Duration::from_millis(16);
-        if dt < ms16 {
-            std::thread::sleep(ms16 - dt);
-        }
+    pub fn update(&mut self, dt: std::time::Duration) {
+        println!("Server update: dt={:?}", dt);
+        //self.engine.update(&mut self.world, dt);
+        std::thread::sleep_ms(1000);
+
     }
 }

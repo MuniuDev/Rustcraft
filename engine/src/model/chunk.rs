@@ -8,7 +8,7 @@ const SUBCHUNK_COUNT: u8 = config::BUILD_LIMIT / config::CHUNK_SIZE;
 
 #[derive(Copy, Clone)]
 pub struct SubChunk {
-    blocks: [block::Block; CHUNK_VOLUME as usize]
+    blocks: [block::Block; SUBCHUNK_VOLUME as usize]
 }
 
 #[derive(Copy, Clone)]
@@ -17,7 +17,11 @@ pub struct Chunk {
 }
 
 impl SubChunk {
-    pub fn new() -> Self { return SubChunk{blocks:[block::Block::new(); CHUNK_VOLUME as usize]}; }
+    pub fn new() -> Self { 
+        return SubChunk{
+            blocks:[block::Block::new(); SUBCHUNK_VOLUME as usize],
+        }; 
+    }
 }
 
 impl Chunk {

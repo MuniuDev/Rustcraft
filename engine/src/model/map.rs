@@ -9,5 +9,9 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new() -> Self { return Map{chunks:[chunk::Chunk::new(); MAP_AREA as usize]}; }
+    pub fn new() -> Box<Self> { 
+        let chunks = [chunk::Chunk::new(); MAP_AREA as usize];
+        return Box::new(Map{
+            chunks,
+        }); }
 }

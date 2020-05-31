@@ -10,17 +10,25 @@ use winit::event::StartCause;
 use std::time::{Duration, Instant};
 
 use rustcraft_engine::rendering::RenderingSystem;
+use rustcraft_engine::engine::Engine;
+use rustcraft_engine::model::World;
 
 pub struct ClientApp {
     rendering_system : RenderingSystem,
+    engine: Engine,
+    world: Option<World>,
+
     last_tick_instant : Instant
 }
 
 impl ClientApp {
     pub fn new(event_loop: &EventLoop<()>) -> Self {
+        let engine = Engine::new();
         let rendering_system = RenderingSystem::new(&event_loop);
         return ClientApp{
+            engine,
             rendering_system,
+            world: Some(World::new()),
             last_tick_instant: Instant::now()
         };
     }
@@ -45,10 +53,10 @@ impl ClientApp {
     fn on_draw(&mut self) { self.rendering_system.end_frame(); }
 
     fn update(&mut self, dt: std::time::Duration) {
-        println!("Server tick: dt={:?}", dt);
-        let ms16 = std::time::Duration::from_millis(16);
-        if dt < ms16 {
-            std::thread::sleep(ms16 - dt);
+        println!("Client update: dt={:?}", dt);
+        match self.world.as_mut() {
+            Some(world) => { self.engine.update(world, dt); }
+            _ => {}
         }
     }
 
