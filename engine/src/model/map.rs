@@ -1,7 +1,7 @@
-use crate::config::base_config;
+use crate::model::config;
 use crate::model::chunk;
 
-const MAP_AREA: u64 = base_config::MAP_SIZE * base_config::MAP_SIZE;
+const MAP_AREA: u64 = config::MAP_SIZE * config::MAP_SIZE;
 
 #[derive(Copy, Clone)]
 pub struct Map {

@@ -1,4 +1,3 @@
-use crate::config;
 use crate::io;
 use crate::system;
 use crate::util;

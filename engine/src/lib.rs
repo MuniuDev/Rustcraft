@@ -1,15 +1,22 @@
-mod config;
+// MOD STATEMENTS
+mod features;
 mod io;
 mod system;
 mod util;
+
+// PUB MOD STATEMENTS
 pub mod model;
 pub mod task;
 pub mod core;
 pub mod engine;
-pub mod app;
 
+// FEATURES STATEMENTS
 #[cfg(feature = "graphics")]
 pub mod rendering;
+
+// USE STATEMENTS
+pub use features::Features;
+
 
 #[cfg(test)]
 mod tests {

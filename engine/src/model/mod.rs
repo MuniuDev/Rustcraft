@@ -1,5 +1,4 @@
-use crate::config;
-
+pub mod config;
 pub mod block;
 pub mod chunk;
 pub mod map;

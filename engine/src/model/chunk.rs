@@ -1,10 +1,10 @@
-use crate::config::base_config;
+use crate::model::config;
 use crate::model::block;
 
-const CHUNK_SIZE_64: u64 = base_config::CHUNK_SIZE as u64;
+const CHUNK_SIZE_64: u64 = config::CHUNK_SIZE as u64;
 const SUBCHUNK_VOLUME: u64 = CHUNK_SIZE_64 * CHUNK_SIZE_64 * CHUNK_SIZE_64;
-const CHUNK_VOLUME: u64 = CHUNK_SIZE_64 * CHUNK_SIZE_64 * base_config::BUILD_LIMIT as u64;
-const SUBCHUNK_COUNT: u8 = base_config::BUILD_LIMIT / base_config::CHUNK_SIZE;
+const CHUNK_VOLUME: u64 = CHUNK_SIZE_64 * CHUNK_SIZE_64 * config::BUILD_LIMIT as u64;
+const SUBCHUNK_COUNT: u8 = config::BUILD_LIMIT / config::CHUNK_SIZE;
 
 #[derive(Copy, Clone)]
 pub struct SubChunk {
