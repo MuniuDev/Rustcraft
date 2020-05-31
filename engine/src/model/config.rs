@@ -1,5 +1,8 @@
+use crate::core::*;
 
-pub const CHUNK_SIZE:  u8 = 16;
-pub const BUILD_LIMIT: u8 = 128;
+pub const SUBCHUNK_SIZE:  SizeScalar = 16;
 
-pub const MAP_SIZE:  u64 = 2; // In chunks
+pub const BUILD_LIMIT: SizeScalar = 16; // In chunks
+pub const MAP_SIZE:  SizeScalar = 32; // In chunks, block radius
+
+

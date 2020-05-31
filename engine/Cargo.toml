@@ -12,6 +12,9 @@ audio = []
 networking = []
 
 [dependencies]
+approx = "0.3.2"
+nalgebra = "0.21"
+static_assertions = "1.1.0"
 serde = { version = "1.0", features = ["derive"] }
 
 vulkano = { version = "0.18", optional = true }

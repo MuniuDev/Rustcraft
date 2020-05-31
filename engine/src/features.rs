@@ -1,7 +1,7 @@
 macro_rules! is_feature_enabled {
     ($name:expr) => (
         (||{
-        #[allow(unused_mut)]
+        #[allow(unused_mut, unused_assignments)]
         let mut val = false;
         #[cfg(feature = $name)]
         { val = true; }

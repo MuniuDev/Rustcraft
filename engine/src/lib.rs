@@ -1,3 +1,9 @@
+#[macro_use]
+extern crate static_assertions;
+#[macro_use]
+extern crate approx; // For the macro relative_eq!
+extern crate nalgebra as na;
+
 // MOD STATEMENTS
 mod features;
 mod io;
@@ -16,6 +22,7 @@ pub mod rendering;
 
 // USE STATEMENTS
 pub use features::Features;
+
 
 
 #[cfg(test)]
