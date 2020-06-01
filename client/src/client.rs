@@ -73,8 +73,10 @@ impl ClientApp {
             // Emitted before any events in specific frame.
             Event::NewEvents(start_cause) => { 
                 match start_cause {
-                    winit::event::StartCause::Init => { self.on_init(); }
-                    _ => {}
+                    StartCause::Init => { self.on_init(); },
+                    StartCause::ResumeTimeReached{start, requested_resume} => {},
+                    StartCause::WaitCancelled{start, requested_resume} => {},
+                    StartCause::Poll => {},
                 }
             },
             // Window related events category
@@ -111,11 +113,39 @@ impl ClientApp {
             WindowEvent::Resized(size) => {
                 self.rendering_system.window_resized(window_id, size);
             }
-            _ => {}
+            WindowEvent::Moved(position) => {},
+            WindowEvent::Destroyed => {},
+            WindowEvent::DroppedFile(path_buf) => {},
+            WindowEvent::HoveredFile(path_buf) => {},
+            WindowEvent::HoveredFileCancelled => {},
+            WindowEvent::ReceivedCharacter(c) => {},
+            WindowEvent::Focused(gained) => {},
+            WindowEvent::KeyboardInput{device_id, input, is_synthetic} => {},
+            WindowEvent::ModifiersChanged(ModifiersState) => {},
+            WindowEvent::CursorMoved{device_id, position, modifiers} => {},
+            WindowEvent::CursorEntered{device_id} => {},
+            WindowEvent::CursorLeft{device_id} => {},
+            WindowEvent::MouseWheel { device_id, delta, phase, modifiers } => {},
+            WindowEvent::MouseInput { device_id, state, button, modifiers } => {},
+            WindowEvent::TouchpadPressure { device_id, pressure, stage } => {},
+            WindowEvent::AxisMotion { device_id, axis, value } => {},
+            WindowEvent::Touch(touch) => {},
+            WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size } => {},
+            WindowEvent::ThemeChanged(theme) => {},
         }
     }
 
     fn on_device_event(&mut self, device_id: DeviceId, event : DeviceEvent, elwt : &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow) {
-
+        // TODO Implement raw input handling if necessary.
+        match event {
+            DeviceEvent::Added => {},
+            DeviceEvent::Removed => {},
+            DeviceEvent::MouseMotion { delta } => {},
+            DeviceEvent::MouseWheel { delta } => {},
+            DeviceEvent::Motion { axis, value } => {},
+            DeviceEvent::Button { button, state } => {},
+            DeviceEvent::Key(keyboard_input) => {},
+            DeviceEvent::Text { codepoint } => {},
+        }
     }
 }
