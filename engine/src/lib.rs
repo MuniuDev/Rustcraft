@@ -11,9 +11,9 @@ mod system;
 mod util;
 
 // PUB MOD STATEMENTS
+pub mod core;
 pub mod model;
 pub mod task;
-pub mod core;
 pub mod engine;
 
 // FEATURES STATEMENTS
@@ -21,6 +21,7 @@ pub mod engine;
 pub mod rendering;
 
 // USE STATEMENTS
+pub use crate::core::*;
 pub use features::Features;
 
 

@@ -1,6 +1,6 @@
 // Normal vertex
 #[derive(Default, Debug, Clone)]
 pub struct Vertex {
-    pub position: [f32; 2]
+    pub position: [f32; 3]
 }
 vulkano::impl_vertex!(Vertex, position);

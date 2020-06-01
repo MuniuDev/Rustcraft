@@ -3,38 +3,46 @@ use vulkano::instance::PhysicalDevice;
 use vulkano::device::Device;
 use vulkano::swapchain::Surface;
 use vulkano::swapchain::{Swapchain, SurfaceTransform, PresentMode, ColorSpace, FullscreenExclusive};
+use vulkano::image::swapchain::SwapchainImage;
 use vulkano::command_buffer::DynamicState;
 use vulkano::sync;
 use vulkano::sync::GpuFuture;
+use vulkano::framebuffer::{Subpass, RenderPassAbstract};
 
 use vulkano_win::VkSurfaceBuild;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 use winit::window::Window;
+use winit::window::WindowId;
+use winit::event_loop::EventLoopWindowTarget;
 
 use std::sync::Arc;
+use std::collections::HashMap;
+
 
 use crate::rendering::common::*;
 use crate::rendering::target::RenderTarget;
+use crate::rendering::error::RenderingError;
+use crate::rendering::config;
+use crate::rendering::window::WindowContext;
+
+use crate::rendering::geometry::{Geometry, GeometryId};
+
+use crate::core::*;
+
 
 pub struct RenderContext {
     pub device : Arc<Device>,
     pub queue : Arc<vulkano::device::Queue>,
-    pub render_target : RenderTarget,
+    pub default_window_render_pass : Arc<dyn RenderPassAbstract + Send + Sync>,
+    pub windows : HashMap<WindowId, WindowContext>,
     
-    pub surface : Arc<Surface<Window>>,
-    pub swapchain : Arc<Swapchain<Window>>,
-
-    pub dynamic_state : DynamicState,
-    pub recreate_swapchain : bool,
-    pub previous_frame_end : Option<Box<dyn GpuFuture>>,
+    geometry_id_counter : GeometryId,
+    pub geometries : HashMap<GeometryId, Geometry>,
 }
 
 impl RenderContext {
-    pub fn new(event_loop: &EventLoop<()>, instance : Arc<Instance>) -> Self {
-                // EventLoop + Surface setup
-		let surface = WindowBuilder::new().build_vk_surface(&event_loop, instance.clone()).unwrap();
-
+    pub fn new(elwt : &EventLoopWindowTarget<()>, instance : Arc<Instance>) -> Self {
         // Choose queue family
         println!("Available physical devices:");
         for dev in PhysicalDevice::enumerate(&instance) {
@@ -54,7 +62,7 @@ impl RenderContext {
             family.supports_sparse_binding());
         }
         let queue_family = physical.queue_families()
-            .find(|&q| q.supports_graphics()  && surface.is_supported(q).unwrap_or(false))
+            .find(|&q| q.supports_graphics()  /*&& surface.is_supported(q).unwrap_or(false)*/)
             .expect("couldn't find a graphical queue family");
 
         // Device + queues
@@ -68,45 +76,8 @@ impl RenderContext {
                         [(queue_family, 0.5)].iter().cloned()).expect("failed to create device")
         };
         let queue = queues.next().unwrap();
-
-        let (swapchain, images) = {
-            // Querying the capabilities of the surface. When we create the swapchain we can only
-            // pass values that are allowed by the capabilities.
-            let caps = surface.capabilities(physical).unwrap();
-            let usage = caps.supported_usage_flags;
-    
-            // The alpha mode indicates how the alpha value of the final image will behave. For example
-            // you can choose whether the window will be opaque or transparent.
-            //let alpha = caps.supported_composite_alpha.iter().next().unwrap();
-            let alpha = vulkano::swapchain::CompositeAlpha::Opaque;
-    
-            // Choosing the internal format that the images will have.
-            println!("{:?}",caps.supported_formats);
-            println!("{:?}",caps.supported_usage_flags);
-            println!("{:?}",vulkano::swapchain::CompositeAlpha::Opaque);
-            //let format = caps.supported_formats[0].0;
-            let format = vulkano::format::Format::B8G8R8A8Unorm;
-    
-            // The dimensions of the window, only used to initially setup the swapchain.
-            // NOTE:
-            // On some drivers the swapchain dimensions are specified by `caps.current_extent` and the
-            // swapchain size must use these dimensions.
-            // These dimensions are always the same as the window dimensions
-            //
-            // However other drivers dont specify a value i.e. `caps.current_extent` is `None`
-            // These drivers will allow anything but the only sensible value is the window dimensions.
-            //
-            // Because for both of these cases, the swapchain needs to be the window dimensions, we just use that.
-            let dimensions: [u32; 2] = surface.window().inner_size().into();
-    
-            // Please take a look at the docs for the meaning of the parameters we didn't mention.
-            Swapchain::new(device.clone(), surface.clone(), caps.min_image_count, format,
-                dimensions, 1, usage, &queue, SurfaceTransform::Identity, alpha,
-                PresentMode::Fifo, FullscreenExclusive::Default, true, ColorSpace::SrgbNonLinear).unwrap()
-    
-        };
-
-        let render_pass = Arc::new(vulkano::single_pass_renderpass!(
+        
+        let default_window_render_pass = Arc::new(vulkano::single_pass_renderpass!(
             device.clone(),
             attachments: {
                 // `color` is a custom name we give to the first and only attachment.
@@ -121,7 +92,7 @@ impl RenderContext {
                     // be one of the types of the `vulkano::format` module (or alternatively one
                     // of your structs that implements the `FormatDesc` trait). Here we use the
                     // same format as the swapchain.
-                    format: swapchain.format(),
+                    format: config::DEFAULT_WINDOW_FORMAT,
                     // TODO:
                     samples: 1,
                 }
@@ -134,27 +105,47 @@ impl RenderContext {
             }
         ).unwrap());
 
-        let mut dynamic_state = DynamicState { line_width: None, viewports: None, scissors: None, compare_mask: None, write_mask: None, reference: None };
-        let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut dynamic_state);
-        let recreate_swapchain = false;
-        let previous_frame_end = Some(Box::new(sync::now(device.clone())) as Box<dyn GpuFuture>);
-
-        let render_target = RenderTarget {
-            images,
-            render_pass,
-            framebuffers,
-        };
+        //let window_context = WindowContext::new(elwt, instance.clone(), device.clone(), queue.clone(), default_window_render_pass.clone());
+        //let window_id = window_context.id();
+        let mut windows = HashMap::<WindowId, WindowContext>::new();
+        //windows.insert(window_id, window_context);
 
         return RenderContext{
             device,
             queue,
-            surface,
-            swapchain,
-            render_target,
-
-            dynamic_state,
-            recreate_swapchain,
-            previous_frame_end,
+            default_window_render_pass, 
+            windows,
+            geometry_id_counter: 0,
+            geometries: HashMap::new()
         };
+    }
+
+    pub fn create_window(&mut self, elwt: &EventLoopWindowTarget<()>, name: &str) -> WindowId {
+        let window_context = WindowContext::new(
+            elwt, 
+            self.device.instance().clone(), 
+            self.device.clone(), 
+            self.queue.clone(), 
+            self.default_window_render_pass.clone());
+        
+        let window_id = window_context.id();
+        self.windows.insert(window_id, window_context);
+        return window_id;
+    }
+
+    pub fn close_window(&mut self, window_id: WindowId) -> Result<(), RenderingError> {
+        match self.windows.remove(&window_id) {
+            Some(_) => { return Ok(()) },
+            None => { return Err(RenderingError::WindowNotFound)}
+        }
+    }
+
+    pub fn window_count(&self) -> usize { return self.windows.len(); }
+
+    pub fn create_geometry(&mut self, data: &Vec<na::Vector3<FpScalar>>) -> GeometryId {
+        let geometry_id = self.geometry_id_counter;
+        self.geometry_id_counter += 1;
+        self.geometries.insert(geometry_id, Geometry::from_data(self.device.clone(), data));
+        return geometry_id;
     }
 }

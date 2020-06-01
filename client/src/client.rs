@@ -9,9 +9,14 @@ use winit::event::StartCause;
 
 use std::time::{Duration, Instant};
 
-use rustcraft_engine::rendering::RenderingSystem;
+use rustcraft_engine::rendering::{RenderingSystem};
 use rustcraft_engine::engine::Engine;
 use rustcraft_engine::model::World;
+use rustcraft_engine::core::*;
+
+use crate::primitives;
+
+use std::sync::Arc;
 
 pub struct ClientApp {
     rendering_system : RenderingSystem,
@@ -24,7 +29,9 @@ pub struct ClientApp {
 impl ClientApp {
     pub fn new(event_loop: &EventLoop<()>) -> Self {
         let engine = Engine::new();
-        let rendering_system = RenderingSystem::new(&event_loop);
+        let mut rendering_system = RenderingSystem::new(&event_loop);
+        rendering_system.open_window(event_loop, "Rustcraft client");
+        let geometry_id = rendering_system.create_geometry(&primitives::generate_box(1.0));
         return ClientApp{
             engine,
             rendering_system,
@@ -96,8 +103,10 @@ impl ClientApp {
     fn on_window_event(&mut self, window_id: WindowId, event : WindowEvent, elwt : &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow) {
         match event {
             WindowEvent::CloseRequested => {
-                self.rendering_system.close_window(window_id);
-                *control_flow = ControlFlow::Exit;
+                let was_last = self.rendering_system.close_window(window_id);
+                if was_last {
+                    *control_flow = ControlFlow::Exit;
+                }
             }
             WindowEvent::Resized(size) => {
                 self.rendering_system.window_resized(window_id, size);

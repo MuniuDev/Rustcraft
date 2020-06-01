@@ -5,7 +5,6 @@ use vulkano::buffer::BufferUsage;
 use vulkano::buffer::CpuAccessibleBuffer;
 use vulkano::swapchain::Surface;
 use vulkano::swapchain::{Swapchain, SurfaceTransform, PresentMode, ColorSpace, FullscreenExclusive};
-use vulkano::image::swapchain::SwapchainImage;
 use vulkano::framebuffer::{Framebuffer, FramebufferAbstract, Subpass, RenderPassAbstract};
 use vulkano::pipeline::GraphicsPipeline;
 use vulkano::pipeline::GraphicsPipelineAbstract;
@@ -28,7 +27,6 @@ use std::sync::Arc;
 use std::vec::Vec;
 
 pub struct RenderTarget {
-    pub images : Vec<Arc<SwapchainImage<Window>>>,
     pub framebuffers : Vec<Arc<dyn FramebufferAbstract + Send + Sync>>,
     pub render_pass : Arc<dyn RenderPassAbstract + Send + Sync>,
 }

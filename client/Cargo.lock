@@ -827,7 +827,10 @@ checksum = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
 name = "rustcraft-client"
 version = "0.1.0"
 dependencies = [
+ "approx",
+ "nalgebra",
  "rustcraft-engine",
+ "static_assertions",
  "winit",
 ]
 
